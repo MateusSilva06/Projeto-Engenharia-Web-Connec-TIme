@@ -1,0 +1,85 @@
+﻿version: '3.9'
+
+services:
+  frontend:
+    build:
+      context: ./my-app
+      dockerfile: Dockerfile
+    container_name: connec_time_frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://backend:8000
+    depends_on:
+      - backend
+    volumes:
+      - ./my-app:/app
+      - /app/node_modules
+      - /app/.next
+    networks:
+      - connec_time_net
+    command: npm run dev
+
+  backend:
+    build:
+      context: ./backend/BitflowConnectTime-main
+      dockerfile: Dockerfile
+    container_name: connec_time_backend
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    ports:
+      - "8000:8000"
+    environment:
+      - DB_HOST=db
+      - DB_USER=root
+      - DB_PASSWORD=connec_time_2025
+      - DB_NAME=contatos_sistema
+      - DB_PORT=3306
+      - SECRET_KEY=sua_chave_secreta_super_segura_aqui_change_in_production
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./backend/BitflowConnectTime-main:/app
+    networks:
+      - connec_time_net
+    env_file:
+      - ./backend/BitflowConnectTime-main/.env
+
+  db:
+    image: mariadb:latest
+    container_name: connec_time_db
+    restart: always
+    environment:
+      MARIADB_ROOT_PASSWORD: connec_time_2025
+      MARIADB_DATABASE: contatos_sistema
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - connec_time_net
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pconnec_time_2025"]
+      timeout: 20s
+      retries: 10
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: connec_time_phpmyadmin
+    environment:
+      PMA_HOST: db
+      PMA_USER: root
+      PMA_PASSWORD: connec_time_2025
+    ports:
+      - "8080:80"
+    depends_on:
+      - db
+    networks:
+      - connec_time_net
+
+volumes:
+  mysql_data:
+
+networks:
+  connec_time_net:
+    driver: bridge
